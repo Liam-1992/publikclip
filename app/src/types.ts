@@ -1,3 +1,14 @@
+export interface ChatGPTStatus {
+  ok: boolean
+  connected: boolean
+  active: string | null
+  model?: string
+  accounts: { id: string; label: string; connected: boolean }[]
+  revocation_confirmed?: boolean
+}
+
+export interface ChatGPTModel { slug: string; display_name: string }
+
 export interface PipelineEvent {
   event: string
   stage?: string

@@ -1,5 +1,7 @@
 import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import type { UpdateNotice,
+  ChatGPTStatus,
+  ChatGPTModel,
   AudioItem,
   AudioKeysStatus,
   JobResults,
@@ -12,7 +14,19 @@ import type { UpdateNotice,
   SyncSummary
 } from './types'
 
+async function chatgptCall<T>(action: string, value?: string): Promise<T> {
+  const result = await invoke<T & { ok: boolean; error?: string }>('chatgpt_tool', { action, value })
+  if (!result.ok) throw new Error(result.error || 'ChatGPT request failed')
+  return result
+}
+
 export const api = {
+  chatgptStatus: () => chatgptCall<ChatGPTStatus>('status'),
+  chatgptLogin: (accountId?: string) => chatgptCall<ChatGPTStatus>('login', accountId),
+  chatgptLogout: () => chatgptCall<ChatGPTStatus>('logout'),
+  chatgptModels: () => chatgptCall<{ models: ChatGPTModel[] }>('models'),
+  chatgptSelectModel: (slug: string) => chatgptCall<ChatGPTStatus>('model', slug),
+  chatgptSelectAccount: (id: string) => chatgptCall<ChatGPTStatus>('account', id),
   runJob: (source: string, llm: string, captions: string) =>
     invoke<void>('run_job', { source, llm, captions }),
   resumeJob: (jobId: string, llm?: string, captions?: string, camera?: string) =>

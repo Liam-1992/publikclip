@@ -6,9 +6,10 @@ import { api } from '../api'
 import { VIDEO_EXTENSIONS, pickVideo } from '../files'
 import type { JobSummary, PublikStatus, UpdateNotice } from '../types'
 import KeyModal from './KeyModal'
-import { LINK_GATE_TITLE, LinkGateCard, accountLink, balanceLine, claimState, linkGate } from './PublikCard'
+import { LinkGateCard, accountLink, balanceLine, claimState, linkGate } from './PublikCard'
 
 const BRAINS: [string, string][] = [
+  ['chatgpt', 'ChatGPT plan'],
   ['publik', 'publik API'],
   ['gemini', 'my Gemini key'],
   ['ollama', 'ollama']
@@ -44,7 +45,8 @@ interface Props {
 
 export default function Studio({ jobs, running, stages, error, onRun, onOpenLoop, onOpenJob, onResume }: Props) {
   const [source, setSource] = useState('')
-  const [llm, setLlm] = useState('publik')
+  const [llm, setLlm] = useState(() => localStorage.getItem('scoring-provider') || 'chatgpt')
+  const [chatgptReady, setChatgptReady] = useState(false)
   const [captions, setCaptions] = useState('classic')
   const [showKey, setShowKey] = useState(false)
   const [publik, setPublik] = useState<PublikStatus | null>(null)
@@ -61,7 +63,10 @@ export default function Studio({ jobs, running, stages, error, onRun, onOpenLoop
       .then((u) => setUpdate(u.update_available ? u : null))
       .catch(() => {})
   }, [])
-  const pickedBrain = useRef(false)
+  const refreshChatGPT = useCallback(() => {
+    api.chatgptStatus().then((s) => setChatgptReady(s.connected)).catch(() => setChatgptReady(false))
+  }, [])
+  useEffect(() => { if (!running) refreshChatGPT() }, [running, refreshChatGPT])
   // The drag-drop listener is registered once; it reads this instead of
   // re-subscribing (and missing a drop) every time a run starts or ends.
   const runningRef = useRef(running)
@@ -141,20 +146,13 @@ export default function Studio({ jobs, running, stages, error, onRun, onOpenLoop
 
   // On mount and after every run (maybe ended on a 402): ask the server.
   useEffect(() => {
-    if (!running) refreshPublik()
-  }, [running, refreshPublik])
+    if (!running && llm === 'publik') refreshPublik()
+  }, [running, llm, refreshPublik])
 
-  // Default brain is publik API once this computer is linked — never the
-  // user's own Gemini key just because one is saved (a job once started 18 s
-  // before the key finished minting and billed that key directly). Once the
-  // user picks a brain this session, the picker is theirs.
   const gate = linkGate(publik)
   const linked = gate === 'linked'
-  useEffect(() => {
-    if (linked && !pickedBrain.current) setLlm('publik')
-  }, [linked])
-
-  const canRun = linked && !running && source.trim() !== ''
+  const providerReady = llm === 'chatgpt' ? chatgptReady : llm === 'publik' ? linked : true
+  const canRun = providerReady && !running && source.trim() !== ''
   const st = publik?.status
   const link = accountLink(publik)
   const topUp = st?.top_up_url ?? link?.url ?? null
@@ -183,6 +181,7 @@ export default function Studio({ jobs, running, stages, error, onRun, onOpenLoop
           onClose={() => {
             setShowKey(false)
             refreshPublik()
+            refreshChatGPT()
           }}
         />
       )}
@@ -199,8 +198,8 @@ export default function Studio({ jobs, running, stages, error, onRun, onOpenLoop
               key={job.id}
               className={`rail-job ${job.rendered ? '' : 'partial'}`}
               onClick={() => (job.rendered ? onOpenJob(job.id) : onResume(job.id))}
-              disabled={running || (!job.rendered && !linked)}
-              title={job.rendered ? 'open results' : linked ? 'resume from checkpoint' : LINK_GATE_TITLE}
+              disabled={running}
+              title={job.rendered ? 'open results' : 'resume from checkpoint'}
             >
               <span className={`led ${job.rendered ? 'led-on' : 'led-half'}`} />
               <span className="rail-job-title">{job.title ?? job.id}</span>
@@ -209,7 +208,7 @@ export default function Studio({ jobs, running, stages, error, onRun, onOpenLoop
           ))}
         </div>
         <footer className="rail-foot">
-          {publik?.provisioned && !st?.needs_credit && !st?.disconnected && (
+          {llm === 'publik' && publik?.provisioned && !st?.needs_credit && !st?.disconnected && (
             <p className="rail-balance mono">
               {balanceLine(publik)}
               {claimState(publik) === 'anonymous' && publik.claim_url && (
@@ -259,13 +258,18 @@ export default function Studio({ jobs, running, stages, error, onRun, onOpenLoop
               className="btn-primary"
               onClick={() => onRun(source.trim(), llm, captions)}
               disabled={!canRun}
-              title={linked ? undefined : LINK_GATE_TITLE}
+              title={providerReady ? undefined : 'Connect the selected provider in Brain & keys'}
             >
               {running ? 'WORKING' : 'CUT IT'}
             </button>
           </div>
           {notice && <p className="input-notice mono">{notice}</p>}
-          {!linked && !running && (
+          {llm === 'chatgpt' && !running && <p className="input-notice">
+            {chatgptReady ? 'Using ChatGPT plan. ' : 'Sign in with ChatGPT in Brain & keys to start. '}
+            <button className="btn-link" onClick={() => setShowKey(true)}>Brain &amp; keys</button>
+            {' · '}<button className="btn-link" onClick={() => openUrl('https://chatgpt.com/#settings/Usage')}>Manage usage ↗</button>
+          </p>}
+          {llm === 'publik' && !linked && !running && (
             <LinkGateCard
               publik={publik}
               checking={!walletChecked && gate !== 'off'}
@@ -280,8 +284,8 @@ export default function Studio({ jobs, running, stages, error, onRun, onOpenLoop
                   key={mode}
                   className={`opt ${llm === mode ? 'opt-on' : ''}`}
                   onClick={() => {
-                    pickedBrain.current = true
                     setLlm(mode)
+                    localStorage.setItem('scoring-provider', mode)
                   }}
                   disabled={running}
                 >
@@ -326,7 +330,7 @@ export default function Studio({ jobs, running, stages, error, onRun, onOpenLoop
           </section>
         )}
 
-        {linked && st?.needs_credit && (
+        {llm === 'publik' && linked && st?.needs_credit && (
           <section className="publik-banner">
             <span className="led led-half" />
             <div>

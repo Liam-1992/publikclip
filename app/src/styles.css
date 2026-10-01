@@ -136,8 +136,10 @@ body {
 .onboarding {
   position: relative;
   min-height: 100%;
+  height: 100%;
+  overflow-y: auto;
   display: grid;
-  place-items: center;
+  place-items: safe center;
   padding: 48px;
   background:
     radial-gradient(1200px 500px at 85% -10%, rgba(255, 178, 36, 0.07), transparent 60%),
@@ -148,6 +150,18 @@ body {
   z-index: 2;
   max-width: 660px;
   animation: rise 0.5s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
+.chatgpt-card { padding: 8px 0 18px; }
+.chatgpt-card h3 { margin-bottom: 12px; }
+.chatgpt-card select {
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  color: var(--text);
+  background: var(--ink);
+  border: 1px solid var(--line);
+  font: inherit;
 }
 @keyframes rise {
   from { opacity: 0; transform: translateY(18px); }

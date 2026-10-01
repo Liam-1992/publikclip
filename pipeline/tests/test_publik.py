@@ -405,7 +405,9 @@ def test_scoring_stage_turns_publik_stop_into_stage_error(monkeypatch, tmp_path)
 
 
 def test_copy_rule():
-    banned = re.compile(r"OpenAI API|ChatGPT credit|Gemini credit|publik credits|in credits", re.I)
+    # ChatGPT plan usage is a legitimate provider in this fork. Keep the
+    # original checks for misleading Publik/Gemini billing terminology.
+    banned = re.compile(r"Gemini credit|publik credits|in credits", re.I)
     roots = [REPO / "pipeline" / "publikclip_pipeline", REPO / "app" / "src", REPO / "README.md"]
     hits = []
     for root in roots:

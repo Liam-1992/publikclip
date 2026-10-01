@@ -8,8 +8,8 @@ use serde_json::{json, Value};
 
 use crate::publik::curl_request;
 
-const LATEST_RELEASE_URL: &str = "https://api.github.com/repos/Blueturboguy07/publikclip/releases/latest";
-const RELEASES_PAGE: &str = "https://github.com/Blueturboguy07/publikclip/releases/latest";
+const LATEST_RELEASE_URL: &str = "https://api.github.com/repos/Liam-1992/publikclip/releases/latest";
+const RELEASES_PAGE: &str = "https://github.com/Liam-1992/publikclip/releases/latest";
 
 /// "v0.2.3" or "0.2.3" -> (0, 2, 3). Anything else is None, so a tag that
 /// is not a version can never look newer.

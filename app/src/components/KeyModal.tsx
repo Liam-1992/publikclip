@@ -4,6 +4,7 @@ import { openUrl } from '@tauri-apps/plugin-opener'
 import { api } from '../api'
 import type { PublikStatus } from '../types'
 import { PUBLIK_DATA_PATH, PUBLIK_PRE_SETUP, PublikReady } from './PublikCard'
+import ChatGPTCard from './ChatGPTCard'
 
 /** Post-onboarding brain + key management: publik API first, then your own
  * Gemini key, then Pexels. */
@@ -175,6 +176,7 @@ export default function KeyModal({ onClose }: Props) {
           <p className="audit-kicker">THE BRAIN</p>
           <button className="btn-ghost" onClick={onClose}>close ✕</button>
         </header>
+        <ChatGPTCard />
         <PublikRow />
         <p className="audit-label" style={{ marginTop: 22 }}>YOUR OWN GEMINI KEY</p>
         <p className="ig-intro">

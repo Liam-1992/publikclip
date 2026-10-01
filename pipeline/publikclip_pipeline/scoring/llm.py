@@ -433,6 +433,12 @@ def _pick_ollama_model(models: list[str]) -> str:
 
 
 def make_client(llm_mode: str):
+    if llm_mode == "chatgpt":
+        from .chatgpt_client import ChatGPTClient
+
+        return ChatGPTClient()
     if llm_mode == "ollama":
         return OllamaClient()
+    if llm_mode not in ("publik", "gemini"):
+        raise LlmError(f"Unknown scoring provider: {llm_mode}")
     return GeminiClient(resolve_endpoint(llm_mode))

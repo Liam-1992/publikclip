@@ -43,6 +43,8 @@ const SIGNAL_LABELS: Record<string, string> = {
 function scoredBy(score: JobResults['score']): string {
   const model = score?.model ?? '—'
   switch (score?.llm_mode) {
+    case 'chatgpt':
+      return `scored by ${model} using ChatGPT plan`
     case 'publik':
       return `scored by ${model} via publik API`
     case 'gemini':

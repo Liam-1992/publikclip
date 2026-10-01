@@ -379,6 +379,19 @@ async fn edit_tool(args: Vec<String>) -> Result<Value, String> {
     run_cli_json(full)
 }
 
+/// Credentials and authorization URLs never cross into the webview.
+#[tauri::command]
+async fn chatgpt_tool(action: String, value: Option<String>) -> Result<Value, String> {
+    if !["status", "login", "logout", "models", "model", "account"].contains(&action.as_str()) {
+        return Err("Unknown ChatGPT action".to_string());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut args = vec!["chatgpt".to_string(), action];
+        if let Some(v) = value { args.push(v); }
+        run_cli_json(args)
+    }).await.map_err(|e| e.to_string())?
+}
+
 /// Fetches the curated starter pack — can take a while (several downloads),
 /// so it streams progress over the same pipeline-event channel as
 /// run_job/run_edit_render rather than blocking behind a sync call.
@@ -635,6 +648,7 @@ fn main() {
             job_results,
             list_job_dirs,
             save_gemini_key,
+            chatgpt_tool,
             get_setup_state,
             mark_onboarded,
             check_ollama,

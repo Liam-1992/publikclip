@@ -171,7 +171,7 @@ class ScoreStage(Stage):
         finalists = scored[:SELECT_COUNT]
 
         # T2 visual pass + music brief on finalists only.
-        supports_vision = client.backend == "gemini"
+        supports_vision = getattr(client, "supports_vision", client.backend == "gemini")
         for j, entry in enumerate(finalists):
             ctx.emit(0.6 + j / max(1, len(finalists)) * 0.35, f"Visual pass {j + 1}/{len(finalists)}…")
             visual = None
@@ -216,7 +216,7 @@ class ScoreStage(Stage):
             )
             entry["signals_fired"] = fired
             entry["signals_missing"] = missing
-            entry["confidence"] = "standard" if client.backend == "gemini" else "local-estimate"
+            entry["confidence"] = "standard" if client.backend != "ollama" else "local-estimate"
 
             prior_mood = music_brief.mood_prior(window_events, entry["arousal_pct"])
             try:

@@ -1,5 +1,67 @@
 # publikclip
 
+## ChatGPT-plan fork
+
+This fork adds **Continue with ChatGPT** using OpenAI's documented open-source
+OAuth flow. Eligible AI requests use your ChatGPT plan or credits balance;
+availability and usage limits depend on your account. It is an independent
+PublikClip fork, not an OpenAI product.
+
+1. Follow the Windows or macOS source-install steps below using this fork's
+   source instead of the upstream repository.
+2. On first launch, choose **ChatGPT plan → Continue with ChatGPT**. Complete
+   registration and grant plan access in your system browser.
+3. Pick an image-capable model from your account's live model catalog. Start a
+   video with **ChatGPT plan** selected as its scoring brain.
+4. Later, use **Brain & keys** to change models/accounts, reauthorize, sign out,
+   or open ChatGPT's usage settings.
+
+ChatGPT handles transcript scoring, sampled-frame analysis, music briefs, and
+visual planning. Transcription, tracking, captions, audio analysis, and rendering
+continue to run locally. **Image generation is excluded from ChatGPT plan usage**;
+visual overlays use your configured stock-image source or manually imported
+images. This provider never silently switches to Publik/Gemini billing.
+
+No OpenAI API key or separate client-ID application is needed for the documented
+dynamic open-source registration flow. Do not paste ChatGPT passwords, browser
+cookies, or Codex tokens into this app. Credentials stay in the Python backend:
+owner-only atomic files on Unix, and Windows-user DPAPI encryption on Windows.
+Multiple registered accounts are kept separate; refresh-token rotation is locked
+across processes. Sign-out attempts remote revocation and reports if it could
+only sign out locally. The selected account and model are pinned for each active
+scoring client.
+
+The original providers remain opt-in. ChatGPT onboarding and runs do not require
+linking a Publik account. Existing jobs resume with their saved provider settings.
+
+CLI examples:
+
+```sh
+cd pipeline
+uv run publikclip chatgpt login
+uv run publikclip chatgpt models
+uv run publikclip chatgpt model <slug-from-models>
+uv run publikclip run video.mp4 --llm chatgpt
+uv run publikclip chatgpt logout
+```
+
+The app installs the small authentication dependency group before sign-in; its
+existing large local-model group is still installed on the first video run.
+Run focused tests without downloading the speech models:
+
+```sh
+uv sync --group dev --group chatgpt
+uv run pytest -q tests/test_chatgpt.py tests/test_publik.py
+```
+
+Sources: [registration and sign-in](https://developers.openai.com/siwc/token-sharing-open-source/sign-in),
+[models and inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference),
+[preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations).
+This implementation follows the documentation available October 1, 2026.
+Live sign-in and a completed inference must be tested on your computer to confirm
+your account's eligibility. The source has protocol/security tests and a passing
+frontend build; a Windows native installer was not built in the authoring environment.
+
 **Long video in. Scored vertical clips out. Everything runs on your machine.**
 
 publikclip is an open-source (AGPL-3.0) desktop app that takes a YouTube URL or a

@@ -132,6 +132,10 @@ def fetch_gemini(query: str, job_dir: Path, llm_mode: str = "publik") -> str | N
     """Image generation through the brain the job scores with: publik API
     (the publik-image alias) or the user's own Gemini key. Ollama jobs only
     ever use a key the user pasted themselves — never publik balance."""
+    if llm_mode == "chatgpt":
+        # ChatGPT plan usage does not include image generation. Never fall
+        # back to another provider/key/balance without an explicit choice.
+        return None
     try:
         endpoint = llm_mod.resolve_endpoint("gemini" if llm_mode == "ollama" else llm_mode)
     except llm_mod.LlmError:

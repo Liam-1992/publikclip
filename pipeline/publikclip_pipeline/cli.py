@@ -259,6 +259,8 @@ def _execute(job: queue.Job, jsonl: bool) -> int:
     else:
         print(f"job {job.id} → {job.dir}", file=sys.stderr)
     ok, err = _ensure_pipeline_deps(jsonl, emit)
+    if ok and config.Settings.from_json(json.loads(job.settings_json)).llm_mode == "chatgpt":
+        ok, err = _ensure_chatgpt_deps(emit)
     if not ok:
         message = f"Couldn't install pipeline dependencies (one-time setup): {err}"
         # run_stages() never ran, so nothing else will move this job off
@@ -574,21 +576,49 @@ def cmd_audio(args: argparse.Namespace) -> int:
     return 2
 
 
+def _ensure_chatgpt_deps(emit) -> tuple[bool, str | None]:
+    import importlib.util
+
+    if all(importlib.util.find_spec(name) for name in ("httpx", "jwt", "filelock", "jsonschema")):
+        return True, None
+    # The marker is shared by CLI/dev/packaged runtimes. A marker from
+    # another venv or an older installation cannot prove this env is ready.
+    (config.home_dir() / ".chatgpt_deps_synced").unlink(missing_ok=True)
+    return _ensure_group_deps("chatgpt", ".chatgpt_deps_synced", False, emit, "Preparing ChatGPT sign-in…")
+
+
+def cmd_chatgpt(args: argparse.Namespace) -> int:
+    ok, err = _ensure_chatgpt_deps(_progress_printer(args.jsonl))
+    if not ok:
+        print(json.dumps({"ok": False, "error": f"Could not install ChatGPT dependencies: {err}"}), flush=True)
+        return 1
+    from . import chatgpt
+
+    result = chatgpt.command(args.action, args.value)
+    print(json.dumps(result), flush=True)
+    return 0 if result.get("ok") else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="publikclip")
     parser.add_argument("--jsonl", action="store_true", help="machine-readable progress on stdout")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
+    p_chatgpt = sub.add_parser("chatgpt", help="manage ChatGPT plan access")
+    p_chatgpt.add_argument("action", choices=["status", "login", "logout", "models", "model", "account"])
+    p_chatgpt.add_argument("value", nargs="?", default=None)
+    p_chatgpt.set_defaults(fn=cmd_chatgpt)
+
     p_run = sub.add_parser("run", help="process a YouTube URL or local video file")
     p_run.add_argument("source")
-    p_run.add_argument("--llm", choices=["publik", "gemini", "ollama"], default=None)
+    p_run.add_argument("--llm", choices=["chatgpt", "publik", "gemini", "ollama"], default=None)
     p_run.add_argument("--captions", default=None, help="caption preset name")
     p_run.add_argument("--camera", choices=["cut", "pan", "locked"], default=None)
     p_run.set_defaults(fn=cmd_run)
 
     p_resume = sub.add_parser("resume", help="resume a job from its checkpoints")
     p_resume.add_argument("job_id")
-    p_resume.add_argument("--llm", choices=["publik", "gemini", "ollama"], default=None)
+    p_resume.add_argument("--llm", choices=["chatgpt", "publik", "gemini", "ollama"], default=None)
     p_resume.add_argument("--captions", default=None, help="caption preset name")
     p_resume.add_argument("--camera", choices=["cut", "pan", "locked"], default=None)
     p_resume.set_defaults(fn=cmd_resume)

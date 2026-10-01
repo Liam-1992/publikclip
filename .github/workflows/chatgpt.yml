@@ -1,0 +1,36 @@
+name: ChatGPT provider checks
+
+on:
+  push:
+    branches: [main, chatgpt-plus]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  protocol:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pytest httpx "PyJWT[crypto]>=2.10,<3" filelock jsonschema numpy
+      - name: OAuth, encrypted storage, and provider regression tests
+        working-directory: pipeline
+        env:
+          PYTHONPATH: .
+        run: python -m pytest -q tests/test_chatgpt.py tests/test_publik.py tests/test_rubric.py tests/test_queue.py tests/test_first_run_bootstrap.py
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: app
+      - run: npm run build
+        working-directory: app
