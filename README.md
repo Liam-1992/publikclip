@@ -7,8 +7,8 @@ OAuth flow. Eligible AI requests use your ChatGPT plan or credits balance;
 availability and usage limits depend on your account. It is an independent
 PublikClip fork, not an OpenAI product.
 
-1. Follow the Windows or macOS source-install steps below using this fork's
-   source instead of the upstream repository.
+1. Follow the Windows or macOS source-install steps below. The clone commands
+   select this fork's `chatgpt-plus` branch.
 2. On first launch, choose **ChatGPT plan → Continue with ChatGPT**. Complete
    registration and grant plan access in your system browser.
 3. Pick an image-capable model from your account's live model catalog. Start a
@@ -84,16 +84,16 @@ horizontal video file and produces vertical 9:16 clips with:
 Every model — speech recognition, forced alignment, diarization, laughter
 detection, audio tagging, face detection, active-speaker detection — runs
 locally. The only network calls are the video download and 2–3 small LLM calls
-(publik API by default — no key to paste; or bring your own Gemini key, or run
-fully local via Ollama at reduced scoring quality).
+(ChatGPT plan by default in the desktop app; Publik, your own Gemini key, or
+fully local Ollama are available as alternatives).
 
 ## Status
 
 Working end to end: hour-long podcast in, rendered/captioned/scored 9:16 clips
 out, validated on real footage. The Instagram feedback loop ships in-app
 (sync, clip↔Reel matching, snapshot history, automatic score calibration).
-Builds are currently unsigned — install from source below, or follow the
-guided install at [publikhq.com/publikclip](https://publikhq.com/publikclip).
+This fork currently ships source. Install it using the steps below; upstream
+installers do not include this fork's ChatGPT integration.
 
 Runs on macOS (Apple silicon) and Windows 10/11 x64. The Windows path is
 validated on every push by the `windows` workflow: env resolve, full test
@@ -144,7 +144,7 @@ You need four tools: git, [Node](https://nodejs.org), [Rust](https://rustup.rs),
 and [uv](https://docs.astral.sh/uv/). Then:
 
 ```sh
-git clone https://github.com/Blueturboguy07/publikclip.git
+git clone --branch chatgpt-plus https://github.com/Liam-1992/publikclip.git
 cd publikclip/app
 npm install
 npx tauri build --bundles app
@@ -154,9 +154,8 @@ open /Applications/publikclip.app
 
 The app downloads its speech/audio models (~4–5 GB) on first run with a
 progress UI, and fetches a caption-capable static ffmpeg automatically if the
-machine has none. Scoring runs on publik API by default; your own Gemini API
-key or a local Ollama model (reduced scoring quality) are one tap away in
-onboarding.
+machine has none. Scoring uses ChatGPT plan by default in the desktop app.
+Choose another provider in onboarding or Brain & keys if desired.
 
 ## Install from source (Windows)
 
@@ -166,7 +165,7 @@ with C++** build tools, [Node](https://nodejs.org), git, and
 Then, in PowerShell:
 
 ```powershell
-git clone https://github.com/Blueturboguy07/publikclip.git
+git clone --branch chatgpt-plus https://github.com/Liam-1992/publikclip.git
 cd publikclip\app
 npm.cmd install
 node_modules\.bin\tauri.cmd build --bundles nsis
@@ -182,9 +181,9 @@ bar, and a caption-capable static ffmpeg is fetched automatically.
 ```sh
 # pipeline
 cd pipeline && uv sync --group dev --group pipeline && uv run pytest
-uv run publikclip run "https://www.youtube.com/watch?v=..."
+uv run publikclip run "https://www.youtube.com/watch?v=..." --llm chatgpt
 
-# pick the brain per run: --llm publik (default) | gemini | ollama
+# pick the brain per run: --llm chatgpt | publik | gemini | ollama
 # publik API from a terminal, no GUI: PUBLIK_API_KEY=pk_live_... (optional
 # PUBLIK_API_BASE_URL, default https://publikhq.com/api/v1); own key:
 # PUBLIKCLIP_GEMINI_API_KEY=AIza...
