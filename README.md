@@ -2,6 +2,8 @@
 
 ## ChatGPT-plan fork
 
+For local MCP clients, see [MCP server setup and tools](docs/MCP.md).
+
 This fork adds **Continue with ChatGPT** using OpenAI's documented open-source
 OAuth flow. Eligible AI requests use your ChatGPT plan or credits balance;
 availability and usage limits depend on your account. It is an independent
