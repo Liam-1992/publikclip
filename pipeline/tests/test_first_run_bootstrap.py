@@ -13,6 +13,7 @@ ffmpeg at all. Both used to end a first run before any stage did real work:
 from __future__ import annotations
 
 import subprocess
+import importlib.util
 
 import pytest
 
@@ -122,6 +123,7 @@ def test_net_sync_uses_the_bundled_uv_and_never_uninstalls_the_pipeline_group(tm
     monkeypatch.setenv("PUBLIKCLIP_HOME", str(tmp_path / "home"))
     monkeypatch.setenv("PUBLIKCLIP_UV", bundled)
     monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    monkeypatch.setattr(importlib.util, "find_spec", lambda _name: None)
 
     seen: dict = {}
 
@@ -137,13 +139,37 @@ def test_net_sync_uses_the_bundled_uv_and_never_uninstalls_the_pipeline_group(tm
     assert seen["args"][-5:] == ["sync", "--frozen", "--inexact", "--group", "net"]
 
 
-def test_net_sync_is_skipped_once_the_pipeline_group_is_in(tmp_path, monkeypatch):
+def test_net_sync_is_skipped_when_httpx_is_in_this_environment(tmp_path, monkeypatch):
     home = tmp_path / "home"
     home.mkdir()
     (home / ".pipeline_deps_synced").write_text("ok")
     monkeypatch.setenv("PUBLIKCLIP_HOME", str(home))
+    monkeypatch.setattr(importlib.util, "find_spec", lambda _name: object())
     monkeypatch.setattr(subprocess, "run", lambda *_a, **_k: pytest.fail("synced anyway"))
     assert cli._ensure_net_deps(False, lambda *_: None) == (True, None)
+
+
+@pytest.mark.parametrize("group", ["pipeline", "net"])
+def test_shared_marker_from_another_environment_does_not_skip_setup(group, tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".pipeline_deps_synced").write_text("ok")
+    (home / ".net_deps_synced").write_text("ok")
+    monkeypatch.setenv("PUBLIKCLIP_HOME", str(home))
+    monkeypatch.setattr(importlib.util, "find_spec", lambda _name: None)
+    calls = []
+    monkeypatch.setattr(subprocess, "run", lambda args, **kwargs:
+                        calls.append(args) or subprocess.CompletedProcess(args, 0, "", ""))
+    ensure = cli._ensure_pipeline_deps if group == "pipeline" else cli._ensure_net_deps
+    assert ensure(False, lambda *_: None) == (True, None)
+    assert calls[0][-2:] == ["--group", group]
+
+
+def test_pipeline_worker_with_installed_runtime_does_not_resync(tmp_path, monkeypatch):
+    monkeypatch.setenv("PUBLIKCLIP_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(importlib.util, "find_spec", lambda _name: object())
+    monkeypatch.setattr(subprocess, "run", lambda *_a, **_k: pytest.fail("synced anyway"))
+    assert cli._ensure_pipeline_deps(False, lambda *_: None) == (True, None)
 
 
 @pytest.mark.parametrize("argv", [["ig", "overview"], ["audio", "list", "--json"]])

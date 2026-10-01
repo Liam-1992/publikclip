@@ -143,6 +143,17 @@ def _ensure_pipeline_deps(jsonl: bool, emit) -> tuple[bool, str | None]:
     stderr tail from `uv sync`, suitable for `_emit_result`.
     """
     del jsonl  # progress goes through `emit`, which already knows the mode
+    import importlib.util
+
+    required = ("whisperx", "librosa", "cv2", "torch", "speechbrain", "scenedetect",
+                "sklearn", "python_speech_features", "torchlibrosa", "onnxruntime",
+                "scipy", "numba", "httpx", "jwt", "filelock", "jsonschema")
+    if all(importlib.util.find_spec(name) for name in required):
+        return True, None
+    # MCP workers, source CLI, and packaged app use separate environments
+    # with the same data directory. A shared marker cannot prove this
+    # interpreter has the runtime installed.
+    (config.home_dir() / ".pipeline_deps_synced").unlink(missing_ok=True)
     return _ensure_group_deps(
         "pipeline",
         ".pipeline_deps_synced",
@@ -166,8 +177,11 @@ def _ensure_net_deps(jsonl: bool, emit) -> tuple[bool, str | None]:
     its marker means this one is already satisfied.
     """
     del jsonl
-    if (config.home_dir() / ".pipeline_deps_synced").exists():
+    import importlib.util
+
+    if importlib.util.find_spec("httpx"):
         return True, None
+    (config.home_dir() / ".net_deps_synced").unlink(missing_ok=True)
     return _ensure_group_deps(
         "net",
         ".net_deps_synced",
