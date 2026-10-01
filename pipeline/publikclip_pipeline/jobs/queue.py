@@ -137,7 +137,9 @@ def set_job_status(job_id: str, status: str, error: str | None = None, title: st
 
 def _atomic_write_json(path: Path, payload: Any) -> None:
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=1))
+    # ASCII JSON escapes keep Unicode paths/transcripts portable between
+    # the desktop shell, MCP, and legacy Windows readers using a code page.
+    tmp.write_text(json.dumps(payload, ensure_ascii=True, indent=1), encoding="utf-8")
     tmp.replace(path)
 
 

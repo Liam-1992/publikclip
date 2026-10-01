@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import locale
 import os
 import re
 import signal
@@ -46,7 +47,14 @@ def read_stage(job: queue.Job, stage: str) -> dict | None:
     if path.stat().st_size > 32 * 1024 * 1024:
         raise ValueError(f"{stage} checkpoint is too large to read.")
     try:
-        envelope = json.loads(path.read_text(encoding="utf-8"))
+        raw = path.read_bytes()
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            # Older Windows versions of the pipeline wrote checkpoints in
+            # the user's native code page; keep existing jobs readable.
+            text = raw.decode(locale.getencoding())
+        envelope = json.loads(text)
         data = envelope["data"]
         if not isinstance(data, dict):
             raise ValueError

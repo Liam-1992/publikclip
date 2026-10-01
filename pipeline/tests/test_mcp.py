@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import locale
 import os
 import shutil
 import socket
@@ -20,7 +21,7 @@ from mcp.client.streamable_http import streamable_http_client
 
 from publikclip_pipeline import config
 from publikclip_pipeline.jobs import queue
-from publikclip_pipeline.mcp_jobs import JobManager, RunningJob, job_for, validate_source
+from publikclip_pipeline.mcp_jobs import JobManager, RunningJob, job_for, read_stage, validate_source
 from publikclip_pipeline.mcp_server import create_http_app
 
 PIPELINE = Path(__file__).resolve().parents[1]
@@ -209,6 +210,26 @@ def test_worker_environment_is_isolated(home):
     assert "--group" in command and "pipeline" in command and "--frozen" in command
     assert env["UV_PROJECT_ENVIRONMENT"] == str((home / "mcp" / "pipeline-env").resolve())
     assert command[-3:] == ["--jsonl", "resume", "20261001-000000-abcdef"]
+
+
+def test_unicode_history_and_checkpoints_are_portable(home, monkeypatch):
+    manager = JobManager()
+    job = new_job()
+    message = "Préparation… 東京"
+    manager._record(job.id, {"state": "cancelled", "progress": {"message": message}})
+    history = (manager.root / f"{job.id}.json").read_bytes()
+    assert history.isascii()
+    assert json.loads(history.decode("utf-8"))["progress"]["message"] == message
+    queue.set_job_status(job.id, "failed", "Cancelled from MCP")
+    assert manager.status(job.id)["status"] == "cancelled"
+    queue.write_checkpoint(job, "diarize", 1, {"segments": [{"text": message}]})
+    assert (job.dir / "diarize.json").read_bytes().isascii()
+    assert manager.transcript(job.id)["segments"][0]["text"] == message
+    # Read a checkpoint written by an earlier Windows pipeline.
+    legacy = json.dumps({"data": {"segments": [{"text": "café…"}]}}, ensure_ascii=False).encode("cp1252")
+    (job.dir / "diarize.json").write_bytes(legacy)
+    monkeypatch.setattr(locale, "getencoding", lambda: "cp1252")
+    assert read_stage(job, "diarize")["segments"][0]["text"] == "café…"
 
 
 def test_stdio_protocol_and_resource(home, tmp_path):
