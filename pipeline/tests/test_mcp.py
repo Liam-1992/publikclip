@@ -20,7 +20,7 @@ from mcp.client.streamable_http import streamable_http_client
 
 from publikclip_pipeline import config
 from publikclip_pipeline.jobs import queue
-from publikclip_pipeline.mcp_jobs import JobManager, job_for, validate_source
+from publikclip_pipeline.mcp_jobs import JobManager, RunningJob, job_for, validate_source
 from publikclip_pipeline.mcp_server import create_http_app
 
 PIPELINE = Path(__file__).resolve().parents[1]
@@ -118,6 +118,35 @@ def test_cancel_resume_failure_and_shutdown(home, tmp_path, monkeypatch):
         await manager.close()
         assert manager.status(job_id)["status"] == "cancelled"
         assert not manager.active
+    asyncio.run(scenario())
+
+
+def test_cancelled_worker_pipe_reset_remains_cancelled(home):
+    class ResetStream:
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            raise ConnectionResetError("pipe closed by process-tree termination")
+
+        async def read(self, size):
+            return b""
+
+    class KilledProcess:
+        stdout = ResetStream()
+        stderr = ResetStream()
+
+        async def wait(self):
+            return 1
+
+    async def scenario():
+        manager = JobManager()
+        job = new_job()
+        run = RunningJob(KilledProcess(), stopped=True)
+        manager.active[job.id] = run
+        await manager._monitor(job.id, run)
+        assert manager.status(job.id)["status"] == "cancelled"
+        assert "Cancelled from MCP" in manager.status(job.id)["error"]
     asyncio.run(scenario())
 
 

@@ -219,9 +219,18 @@ class JobManager:
                 error = (result or {}).get("error") or f"Video worker exited {code} without a successful result. Check local dependencies and resume."
                 queue.set_job_status(job_id, "failed", str(error))
         except Exception:
-            await self._terminate(run)
-            queue.set_job_status(job_id, "failed", "Worker output could not be read. Resume from checkpoints.")
+            if not run.stopped:
+                await self._terminate(run)
+                queue.set_job_status(job_id, "failed", "Worker output could not be read. Resume from checkpoints.")
+            else:
+                # Windows may reset pipe readers when taskkill closes the
+                # process tree. An explicit stop remains cancellation even
+                # when stdout/stderr cannot be drained after the kill.
+                await run.process.wait()
         finally:
+            if run.stopped:
+                state = "cancelled"
+                queue.set_job_status(job_id, "failed", "Cancelled from MCP. Resume to continue from checkpoints.")
             self._record(job_id, {"state": state, "progress": run.progress})
             self.active.pop(job_id, None)
 
